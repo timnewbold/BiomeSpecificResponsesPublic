@@ -7,4 +7,6 @@ All of the data required to replicate the main analyses are published (DOI: [10.
 
 
 ## Required packages
-The following packages need to be installed prior to running this analysis pipeline
+The following packages need to be installed prior to running this analysis pipeline:
+- ggplot2
+- Hmisc
