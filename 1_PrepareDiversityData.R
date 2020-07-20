@@ -8,7 +8,7 @@ t.start <- Sys.time()
 
 print(t.start)
 
-suppressMessages(suppressWarnings(library(yarg)))
+suppressMessages(suppressWarnings(library(predictsFunctions)))
 
 print(sessionInfo())
 
@@ -26,13 +26,14 @@ problem.studies<-c("AD1_2011__Hanley","AD1_2011__Yoon","VK1_2007__StLaurent",
 diversity<-diversity[!(diversity$Source_ID %in% problem.studies),]
 
 # Drop studies that focused on a single species
-diversity <- diversity[!diversity$Rank_of_study_common_taxon %in% c('Infraspecies','Species'),] 
+diversity <- diversity[!diversity$Rank_of_study_common_taxon %in% 
+                         c('Infraspecies','Species'),] 
 
 cat('Correcting for sampling effort\n')
 diversity <- CorrectSamplingEffort(diversity)
 
 cat('Merging sites\n')
-diversity <- MergeSites(diversity,public = TRUE,silent = TRUE)
+diversity <- MergeSites(diversity,silent = TRUE)
 
 cat('Saving diversity data\n')
 save(diversity,file=paste(outDir,"diversity_data.Rd",sep=""))

@@ -9,7 +9,8 @@ t.start <- Sys.time()
 
 print(t.start)
 
-suppressMessages(suppressWarnings(library(yarg)))
+suppressMessages(suppressWarnings(library(predictsFunctions)))
+suppressMessages(suppressWarnings(library(rgdal)))
 
 print(sessionInfo())
 
@@ -24,9 +25,7 @@ sites.div<-SiteMetrics(diversity=diversity,
                        extra.cols=c("SSB","SSBS","Biome","Sampling_method",
                                     "Study_common_taxon","Sampling_effort",
                                     "Sampling_effort_unit","Biome",
-                                    "Predominant_land_use","Class",'Country'),
-                       sites.are.unique=TRUE,
-                       srEstimators=FALSE,richWeights = diversity$rangeWeight)
+                                    "Predominant_land_use","Class",'Country'))
 
 sites.div <- sites.div[(sites.div$Predominant_land_use!="Urban"),]
 
