@@ -1,43 +1,45 @@
-suppressMessages(suppressWarnings(library(raster)))
-suppressMessages(suppressWarnings(library(spdep)))
+outDir <- "18_RunExplanatoryModelsClimate/"
 
 dataDir <- "0_data/"
 climateSensDir <- "10_EstimateClimateSensitivityByBiome/"
 meanRangeDir <- "17_CalculateMeanRangeMap/"
 biomeDir <- "9_ProcessBiomeMap/"
-outDir <- "18_RunExplanatoryModelsClimate/"
 
-climateSens <- readRDS(paste0(climateSensDir,"ClimateSensitivity_85.rds"))
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
+suppressMessages(suppressWarnings(library(raster)))
+suppressMessages(suppressWarnings(library(spdep)))
+
+print(sessionInfo())
+
+climateSens <- raster(paste0(climateSensDir,"ClimateSensitivity_85.grd"))
 
 wgsCRS <- CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
 behrCRS <- CRS('+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs')
 
 tempSeas <- raster(paste0(dataDir,"bio_4"))
 
-tempSeas <- projectRaster(from = tempSeas,crs = behrCRS)
+tempSeas <- suppressWarnings(
+  projectRaster(from = tempSeas,crs = behrCRS))
 
 tempSeas <- raster::resample(x = tempSeas,y = climateSens)
 
-
 precipSeas <- raster(paste0(dataDir,"bio_15"))
 
-precipSeas <- projectRaster(from = precipSeas,crs = behrCRS)
+precipSeas <- suppressWarnings(
+  projectRaster(from = precipSeas,crs = behrCRS))
 
 precipSeas <- raster::resample(x = precipSeas,y = climateSens)
 
-ThermalIndex <- mean(stack(c(paste0(dataDir,"TI_Amphibians.asc"),
-                             paste0(dataDir,"TI_Birds.asc"),
-                             paste0(dataDir,"TI_Mammals.asc"),
-                             paste0(dataDir,"TI_Reptiles.asc"))),
-                     na.rm=TRUE)
+ThermalIndex <- raster(paste0(dataDir,"VertebrateThermalIndex.grd"))
 
-PrecipIndex <- mean(stack(c(paste0(dataDir,"PI_Amphibians.asc"),
-                            paste0(dataDir,"PI_Birds.asc"),
-                            paste0(dataDir,"PI_Mammals.asc"),
-                            paste0(dataDir,"PI_Reptiles.asc"))),
-                    na.rm=TRUE)
+PrecipIndex <- raster(paste0(dataDir,"VertebratePrecipitationIndex.grd"))
 
-MeanRange <- readRDS(paste0(meanRangeDir,"MeanRangeSizeMap.rds"))
+MeanRange <- readRDS(paste0(dataDir,"MeanRangeSizeMap.rds"))
 
 MeanRange <- raster::resample(x = MeanRange,y = climateSens)
 
@@ -87,16 +89,19 @@ m2 <- lagsarlm(ClimateSens~TempSeas+PrecipSeas+
 
 saveRDS(object = m2,file = paste0(outDir,"SARModel.rds"))
 
-tiff(filename = paste0(outDir,"ClimateSensitivityPatterns.tif"),
-     width = 17.5,height = 10,
-     units = "cm",compression = "lzw",
-     res = 1200)
+pdf(file = paste0(outDir,"Figure5.pdf"),
+     width = 18/2.54,height = 13/2.54)
 
 par(mfrow=c(2,2))
 par(tck=-0.01)
-par(mar=c(2.8,2.8,0.4,0.2))
+par(mar=c(2.4,2.4,0.3,0.2))
 par(mgp=c(1.4,0.2,0))
 par(las=1)
+par(cex=1.0)
+par(cex.axis=1.0)
+par(cex.lab=1.0)
+par(cex.main=1.0)
+par(ps=10)
 
 nd <- data.frame(TempSeas=seq(from=min(mod.data$TempSeas),
                               to = max(mod.data$TempSeas),
@@ -124,8 +129,8 @@ plot(mod.data$TempSeas,
      mod.data$ClimateSens,
      pch=16,cex=0.2,
      xlab="Temperature seasonality",
-     ylab="Richness change / \u00b0C",
-     xaxt="n",yaxt="n")
+     ylab="% Richness change / \u00b0C",
+     xaxt="n",yaxt="n",bty="l")
 
 axis(1,at=xValsT,labels=xVals)
 axis(2,at=yValsT,labels=yVals)
@@ -134,7 +139,7 @@ points(nd$TempSeas,y,type="l",col="#E41A1C",lwd=1)
 points(nd$TempSeas,yplus,type="l",lty=2,col="#E41A1C",lwd=1)
 points(nd$TempSeas,yminus,type="l",lty=2,col="#E41A1C",lwd=1)
 
-mtext(text = "a",side = 3,line = -0.4,adj = -0.14,font = 2,ps = 10)
+mtext(text = "a",side = 3,line = -0.6,adj = -0.14,font = 2,ps = 10)
 
 nd <- data.frame(TempSeas=median(mod.data$TempSeas),
                  PrecipSeas=seq(from=2.2,
@@ -159,9 +164,9 @@ plot(mod.data$PrecipSeas,
      mod.data$ClimateSens,
      pch=16,cex=0.2,
      xlab="Precipitation seasonality",
-     ylab="Richness change / \u00b0C",
+     ylab="% Richness change / \u00b0C",
      xlim=c(2,5.4),
-     xaxt="n",yaxt="n")
+     xaxt="n",yaxt="n",bty="l")
 
 axis(1,at=xValsT,labels=xVals)
 axis(2,at=yValsT,labels=yVals)
@@ -170,7 +175,7 @@ points(nd$PrecipSeas,y,type="l",col="#E41A1C",lwd=1)
 points(nd$PrecipSeas,yplus,type="l",lty=2,col="#E41A1C",lwd=1)
 points(nd$PrecipSeas,yminus,type="l",lty=2,col="#E41A1C",lwd=1)
 
-mtext(text = "b",side = 3,line = -0.4,adj = -0.14,font = 2,ps = 10)
+mtext(text = "b",side = 3,line = -0.6,adj = -0.14,font = 2,ps = 10)
 
 nd <- data.frame(TempSeas=median(mod.data$TempSeas),
                  PrecipSeas=median(mod.data$PrecipSeas),
@@ -195,8 +200,8 @@ plot(mod.data$ThermalIndex,
      mod.data$ClimateSens,
      pch=16,cex=0.2,
      xlab="Thermal position index",
-     ylab="Richness change / \u00b0C",
-     yaxt="n")
+     ylab="% Richness change / \u00b0C",
+     yaxt="n",bty="l")
 
 axis(2,at=yValsT,labels=yVals)
 
@@ -204,7 +209,7 @@ points(nd$ThermalIndex,y,type="l",col="#E41A1C",lwd=1)
 points(nd$ThermalIndex,yplus,type="l",lty=2,col="#E41A1C",lwd=1)
 points(nd$ThermalIndex,yminus,type="l",lty=2,col="#E41A1C",lwd=1)
 
-mtext(text = "c",side = 3,line = -0.4,adj = -0.14,font = 2,ps = 10)
+mtext(text = "c",side = 3,line = -0.6,adj = -0.14,font = 2,ps = 10)
 
 nd <- data.frame(TempSeas=median(mod.data$TempSeas),
                  PrecipSeas=median(mod.data$PrecipSeas),
@@ -226,8 +231,8 @@ plot(mod.data$PrecipIndex,
      mod.data$ClimateSens,
      pch=16,cex=0.2,
      xlab="Precipitation position index",
-     ylab="Richness change / \u00b0C",
-     xaxt="n",yaxt="n")
+     ylab="% Richness change / \u00b0C",
+     xaxt="n",yaxt="n",bty="l")
 
 axis(1,at=xValsT,labels=xVals)
 axis(2,at=yValsT,labels=yVals)
@@ -236,9 +241,12 @@ points(nd$PrecipIndex,y,type="l",col="#E41A1C",lwd=1)
 points(nd$PrecipIndex,yplus,type="l",lty=2,col="#E41A1C",lwd=1)
 points(nd$PrecipIndex,yminus,type="l",lty=2,col="#E41A1C",lwd=1)
 
-mtext(text = "d",side = 3,line = -0.4,adj = -0.14,font = 2,ps = 10)
+mtext(text = "d",side = 3,line = -0.6,adj = -0.14,font = 2,ps = 10)
 
 invisible(dev.off())
 
+t.end <- Sys.time()
 
+print(round(t.end - t.start,0))
 
+sink()

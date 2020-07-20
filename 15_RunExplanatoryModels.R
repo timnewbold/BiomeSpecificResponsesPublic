@@ -1,10 +1,18 @@
-suppressMessages(suppressWarnings(library(StatisticalModels)))
-suppressMessages(suppressWarnings(library(raster)))
+outDir <- "15_RunExplanatoryModels/"
 
 dataDir <- "0_data/"
 sitesDir <- "2_PrepareSiteData/"
 
-outDir <- "15_RunExplanatoryModels/"
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
+suppressMessages(suppressWarnings(library(StatisticalModels)))
+suppressMessages(suppressWarnings(library(raster)))
+
+print(sessionInfo())
 
 wgsCRS <- CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
 behrCRS <- CRS('+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs')
@@ -36,11 +44,12 @@ sites.div$PrecipSeas <- raster::extract(
 
 sites.div$LogPrecipSeas <- log(sites.div$PrecipSeas)
 
-ThermalIndex <- mean(stack(c(paste0(dataDir,"TI_Amphibians.asc"),
-                             paste0(dataDir,"TI_Birds.asc"),
-                             paste0(dataDir,"TI_Mammals.asc"),
-                             paste0(dataDir,"TI_Reptiles.asc"))),
-                     na.rm=TRUE)
+ThermalIndex <- raster(paste0(dataDir,"VertebrateThermalIndex.grd"))
+# ThermalIndex <- mean(stack(c(paste0(dataDir,"TI_Amphibians.asc"),
+#                              paste0(dataDir,"TI_Birds.asc"),
+#                              paste0(dataDir,"TI_Mammals.asc"),
+#                              paste0(dataDir,"TI_Reptiles.asc"))),
+#                      na.rm=TRUE)
 
 ThermalIndex <- raster::crop(
   x = ThermalIndex,
@@ -55,11 +64,12 @@ ThermalIndex <- raster::projectRaster(
 sites.div$ThermalIndex <- raster::extract(
   x = ThermalIndex,y = sites.div[,c('Longitude','Latitude')])
 
-PrecipIndex <- mean(stack(c(paste0(dataDir,"PI_Amphibians.asc"),
-                            paste0(dataDir,"PI_Birds.asc"),
-                            paste0(dataDir,"PI_Mammals.asc"),
-                            paste0(dataDir,"PI_Reptiles.asc"))),
-                    na.rm=TRUE)
+PrecipIndex <- raster(paste0(dataDir,"VertebratePrecipitationIndex.grd"))
+# PrecipIndex <- mean(stack(c(paste0(dataDir,"PI_Amphibians.asc"),
+#                             paste0(dataDir,"PI_Birds.asc"),
+#                             paste0(dataDir,"PI_Mammals.asc"),
+#                             paste0(dataDir,"PI_Reptiles.asc"))),
+#                     na.rm=TRUE)
 
 PrecipIndex <- raster::crop(
   x = PrecipIndex,
@@ -252,6 +262,8 @@ modelAbundPlotting <- GLMER(modelData = sites.div,responseVar = "LogAbund",
 
 saveRDS(object = modelAbundPlotting,file = paste0(outDir,"AbundanceModelForPlotting.rds"))
 
+t.end <- Sys.time()
 
+print(round(t.end - t.start,0))
 
-
+sink()

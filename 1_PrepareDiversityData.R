@@ -1,7 +1,16 @@
-suppressMessages(suppressWarnings(library(yarg)))
+outDir <- "1_PrepareDiversityData/"
 
 dataDir <- "0_data/"
-outDir <- "1_PrepareDiversityData/"
+
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
+suppressMessages(suppressWarnings(library(yarg)))
+
+print(sessionInfo())
 
 cat('Loading database extracts\n')
 diversity<-readRDS(paste(dataDir,"database.rds",sep=""))
@@ -27,3 +36,9 @@ diversity <- MergeSites(diversity,public = TRUE,silent = TRUE)
 
 cat('Saving diversity data\n')
 save(diversity,file=paste(outDir,"diversity_data.Rd",sep=""))
+
+t.end <- Sys.time()
+
+print(round(t.end - t.start,0))
+
+sink()

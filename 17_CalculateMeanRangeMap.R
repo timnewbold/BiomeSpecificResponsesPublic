@@ -1,10 +1,18 @@
-suppressMessages(suppressWarnings(library(raster)))
-suppressMessages(suppressWarnings(library(RColorBrewer)))
+outDir <- "17_CalculateMeanRangeMap/"
 
 dataDir <- "0_data/"
 rangesDir <- "0_ranges/"
 
-outDir <- "17_CalculateMeanRangeMap/"
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
+suppressMessages(suppressWarnings(library(raster)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+
+print(sessionInfo())
 
 source("MeanRange.R")
 
@@ -36,3 +44,9 @@ brks[11] <- brks[11]+0.01
 plot(meanrange,breaks=brks,col=brewer.pal(n = 10,name = "RdYlBu"))
 
 invisible(dev.off())
+
+t.end <- Sys.time()
+
+print(round(t.end - t.start,0))
+
+sink()

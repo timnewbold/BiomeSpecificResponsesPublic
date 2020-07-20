@@ -1,115 +1,160 @@
-suppressMessages(suppressWarnings(library(raster)))
-suppressMessages(suppressWarnings(library(RColorBrewer)))
-
-print(installed.packages()['base',]['Package'])
-print(installed.packages()['base',]['Version'])
-
-print(installed.packages()['graphics',]['Package'])
-print(installed.packages()['graphics',]['Version'])
-
-print(installed.packages()['raster',]['Package'])
-print(installed.packages()['raster',]['Version'])
-
-print(installed.packages()['RColorBrewer',]['Package'])
-print(installed.packages()['RColorBrewer',]['Version'])
+outDir <- "10_EstimateClimateSensitivityByBiome/"
 
 dataDir <- "0_data/"
 inDir <- "7_CalculateClimateDeltas/"
 biomeDir <- "9_ProcessBiomeMap/"
 
-outDir <- "10_EstimateClimateSensitivityByBiome/"
+sink(file = paste0(outDir,"log.txt"))
 
-climateScenario <- '85'
+t.start <- Sys.time()
 
-load(paste0(dataDir,"77_ProcessFutureProjectionsRandomForestsRealisticDispersal/ProjectionResults.Rd"))
+print(t.start)
 
-deltaRichness_2070 <- raster(projResults$AllVertebrates[[climateScenario]]$`70`$deltaMap)
+suppressMessages(suppressWarnings(library(raster)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+suppressMessages(suppressWarnings(library(snow)))
 
-richnessLoss_70 <- deltaRichness_2070 * 100
+print(sessionInfo())
 
-deltaTemperature <- raster::raster(paste0(inDir,"DeltaTemp_",climateScenario,"_2070.tif"))
+invisible(mapply(FUN = function(climateScenario,figureFilename){
 
-deltaTemperature <- deltaTemperature/10
+  ensembleDirs <- list('75_ProcessFutureProjectionsMaxentRealisticDispersal',
+                       '76_ProcessFutureProjectionsGLMRealisticDispersal',
+                       '77_ProcessFutureProjectionsRandomForestsRealisticDispersal',
+                       '78_ProcessFutureProjectionsBIOCLIMRealisticDispersal',
+                       '79_ProcessFutureProjectionsDOMAINRealisticDispersal')
 
-richnessSensitivity <- richnessLoss_70/deltaTemperature
+  cores <- parallel::detectCores()-1
 
-saveRDS(object = richnessSensitivity,file = paste0(outDir,"ClimateSensitivity_",climateScenario,".rds"))
+  cl <- snow::makeCluster(cores)
 
-biomeMap <- raster::raster(paste0(biomeDir,"BiomeRaster.tif"))
+  snow::clusterExport(cl = cl,list = c("dataDir","climateScenario"),
+                      envir = environment())
 
-biome_key <- read.csv(paste0(dataDir,"biomes_key_with_cols.csv"))
+  richnessLoss_70 <- stackApply(x = stack(snow::parLapply(
+    cl = cl,x = ensembleDirs,fun = function(d){
 
-stopifnot(all.equal(extent(deltaRichness_2070),extent(deltaTemperature)))
-stopifnot(all.equal(res(deltaRichness_2070),res(deltaTemperature)))
+      load(paste0(dataDir,d,"/ProjectionResults.Rd"))
 
-stopifnot(all.equal(extent(deltaRichness_2070),extent(biomeMap)))
-stopifnot(all.equal(res(deltaRichness_2070),res(biomeMap)))
+      deltaRichness <- raster::raster(
+        projResults$AllVertebrates[[climateScenario]]$`70`$deltaMap)
 
-biomeNames <- biome_key$WWF_MHTNAM[match(values(biomeMap),biome_key$WWF_MHTNUM)]
+      richnessLoss <- deltaRichness * 100
 
-biomeNames <- dplyr::recode(biomeNames,
-                            'Boreal Forests/Taiga' = 'Bor F',
-                            'Deserts and Xeric Shrublands' = 'Dry',
-                            'Flooded Grasslands and Savannas' = NA_character_,
-                            'Inland Water' = NA_character_,
-                            'Mangroves' = NA_character_,
-                            'Mediterranean Forests, Woodlands and Scrub' = 'Med',
-                            'Montane Grasslands and Shrublands' = 'Temp G',
-                            'Rock and Ice' = NA_character_,
-                            'Temperate Broadleaf and Mixed Forests' = 'Temp F',
-                            'Temperate Conifer Forests' = 'Temp F',
-                            'Temperate Grasslands, Savannas and Shrublands' = 'Temp G',
-                            'Tropical and Subtropical Coniferous Forests' = 'Trop F',
-                            'Tropical and Subtropical Dry Broadleaf Forests' = 'Trop F',
-                            'Tropical and Subtropical Grasslands, Savannas and Shrublands' = 'Trop G',
-                            'Tropical and Subtropical Moist Broadleaf Forests' = 'Trop F',
-                            'Tundra' = NA_character_)
+      return(richnessLoss)
 
-biomeNames <- factor(biomeNames,levels=c('Trop F','Trop G',
-                                        'Dry','Med','Temp F',
-                                        'Temp G','Bor F'))
+    })),indices = rep(1,5),fun = median)
 
-biome.cols <- c('Trop F' = '#0072B2',
-                'Trop G' = '#E69F00',
-                'Dry' = '#D55E00',
-                'Med' = '#CC79A7',
-                'Temp F' = '#56B4E9',
-                'Temp G' = '#F0E442',
-                'Bor F' = '#009E73')
+  snow::stopCluster(cl)
 
-png(filename = paste0(outDir,"BiomeClimateSensitivity_",climateScenario,".png"),
-    width = 12.5,height = 8,units = "cm",res = 150)
+  deltaTemperature <- raster::raster(paste0(
+    inDir,"DeltaTemp_",climateScenario,"_2070.tif"))
 
-par(mar=c(2.8,4,0.2,0.2))
-par(mgp=c(1.2,0.2,0))
-par(las=1)
-par(cex.axis=0.7)
-par(cex.lab=1.0)
-par(tck=-0.01)
+  deltaTemperature <- deltaTemperature/10
 
-df <- na.omit(data.frame(Biome=biomeNames,Sens=values(richnessSensitivity)))
+  richnessSensitivity <- richnessLoss_70/deltaTemperature
 
-# vioplot::vioplot(formula=df$Sens~df$Biome)
-graphics::boxplot(
-  df$Sens~df$Biome,outline=FALSE,
-  ylab = "Richness change / \u00b0C (%)",
-  col=biome.cols[levels(df$Biome)])
+  tiff(filename = paste0(outDir,"SensitivityMap_",climateScenario,".tif"),
+       width = 17.5,height = 10,units = "cm",compression = "lzw",res = 1200)
 
-abline(h=0,lty=2,col="#00000044")
+  par(mar=c(0,0,0,4))
 
-# graphics::boxplot(
-#   df$Sens~df$Biome,
-#   horizontal=TRUE,outline=FALSE,
-#   xlab="Species loss / \u00b0 temperature increase (%)")
+  brks <- c(-70,-35,-30,-25,-20,-15,-10,-5,0,25,50,100)
+  cols <- c(rev(brewer.pal(n = 9,name = "Reds"))[1:8],brewer.pal(n = 9,name = "Blues")[2:4])
 
-invisible(dev.off())
+  raster::plot(x = richnessSensitivity,breaks = brks,col = cols,xaxt="n",yaxt="n",bty="n",box=FALSE)
 
-df <- droplevels(df[(df$Biome != 'Bor F'),])
+  invisible(dev.off())
 
-biomeClimateSens <- tapply(X = df$Sens,INDEX = df$Biome,FUN = mean)
-names(biomeClimateSens) <- c('Tropical Forest','Tropical Grasslands',
-                             'Drylands','Mediterranean','Temperate Forest',
-                             'Temperate Grasslands')
+  writeRaster(x = richnessSensitivity,filename = paste0(outDir,"ClimateSensitivity_",climateScenario),format = "raster")
 
-saveRDS(object = biomeClimateSens,file = paste0(outDir,"BiomeClimateSensitivities_",climateScenario,".rds"))
+  biomeMap <- raster::raster(paste0(biomeDir,"BiomeRaster.tif"))
 
+  biome_key <- read.csv(paste0(dataDir,"biomes_key_with_cols.csv"))
+
+  stopifnot(all.equal(extent(richnessLoss_70),extent(deltaTemperature)))
+  stopifnot(all.equal(res(richnessLoss_70),res(deltaTemperature)))
+
+  stopifnot(all.equal(extent(richnessLoss_70),extent(biomeMap)))
+  stopifnot(all.equal(res(richnessLoss_70),res(biomeMap)))
+
+  biomeNames <- biome_key$WWF_MHTNAM[match(values(biomeMap),biome_key$WWF_MHTNUM)]
+
+  biomeNames <- dplyr::recode(biomeNames,
+                              'Boreal Forests/Taiga' = 'BoF',
+                              'Deserts and Xeric Shrublands' = 'Dry',
+                              'Flooded Grasslands and Savannas' = NA_character_,
+                              'Inland Water' = NA_character_,
+                              'Mangroves' = NA_character_,
+                              'Mediterranean Forests, Woodlands and Scrub' = 'Med',
+                              'Montane Grasslands and Shrublands' = 'TeG',
+                              'Rock and Ice' = NA_character_,
+                              'Temperate Broadleaf and Mixed Forests' = 'TeF',
+                              'Temperate Conifer Forests' = 'TeF',
+                              'Temperate Grasslands, Savannas and Shrublands' = 'TeG',
+                              'Tropical and Subtropical Coniferous Forests' = 'TrF',
+                              'Tropical and Subtropical Dry Broadleaf Forests' = 'TrF',
+                              'Tropical and Subtropical Grasslands, Savannas and Shrublands' = 'TrG',
+                              'Tropical and Subtropical Moist Broadleaf Forests' = 'TrF',
+                              'Tundra' = NA_character_)
+
+  biomeNames <- factor(biomeNames,levels=c('TrF','TrG',
+                                           'Dry','Med','TeF',
+                                           'TeG','BoF'))
+
+  biome.cols <- c('TrF' = '#0072B2',
+                  'TrG' = '#E69F00',
+                  'Dry' = '#D55E00',
+                  'Med' = '#CC79A7',
+                  'TeF' = '#56B4E9',
+                  'TeG' = '#F0E442',
+                  'BoF' = '#009E73')
+
+  pdf(file = paste0(outDir,figureFilename,".pdf"),
+       width = 8.8/2.54,height = 6/2.54)
+
+  par(mar=c(2.2,2.0,0.2,0.2))
+  par(mgp=c(1.2,0.2,0))
+  par(las=1)
+  par(cex=1.0)
+  par(cex.axis=1.0)
+  par(cex.lab=1.0)
+  par(cex.main=1.0)
+  par(tck=-0.01)
+  par(ps=10)
+
+  df <- na.omit(data.frame(Biome=biomeNames,Sens=values(richnessSensitivity)))
+
+  # vioplot::vioplot(formula=df$Sens~df$Biome)
+  graphics::boxplot(
+    df$Sens~df$Biome,outline=FALSE,frame=FALSE,
+    ylab = "Richness change / \u00b0C (%)",
+    xlab="Biome",
+    col=biome.cols[levels(df$Biome)])
+  box(bty="l",which = "plot")
+
+  abline(h=0,lty=2,col="#00000044")
+
+  # graphics::boxplot(
+  #   df$Sens~df$Biome,
+  #   horizontal=TRUE,outline=FALSE,
+  #   xlab="Species loss / \u00b0 temperature increase (%)")
+
+  invisible(dev.off())
+
+  df <- droplevels(df[(df$Biome != 'BoF'),])
+
+  biomeClimateSens <- tapply(X = df$Sens,INDEX = df$Biome,FUN = mean)
+  names(biomeClimateSens) <- c('Tropical Forest','Tropical Grasslands',
+                               'Drylands','Mediterranean','Temperate Forest',
+                               'Temperate Grasslands')
+
+  saveRDS(object = biomeClimateSens,file = paste0(outDir,"BiomeClimateSensitivities_",climateScenario,".rds"))
+
+},list('85','26'),list('Figure2','ExtendedData7')))
+
+t.end <- Sys.time()
+
+print(round(t.end - t.start,0))
+
+sink()

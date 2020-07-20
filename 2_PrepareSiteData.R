@@ -1,8 +1,22 @@
-suppressMessages(suppressWarnings(library(yarg)))
+outDir <- "2_PrepareSiteData/"
 
+dataDir <- "0_data/"
 inDir <- "1_PrepareDiversityData/"
 
-outDir <- "2_PrepareSiteData/"
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
+suppressMessages(suppressWarnings(library(yarg)))
+
+print(sessionInfo())
+
+load(paste0(dataDir,"modelling_data.rd"))
+
+sites.div.endem <- sites.div
+rm(sites.div)
 
 load(paste(inDir,"diversity_data.Rd",sep=""))
 
@@ -161,13 +175,36 @@ sites.div$Biome5 <- dplyr::recode(
 
 table(sites.div$LandUse3,sites.div$Biome2)
 
+cat('With endemicity measure')
+sites.div$CWM_log.range <- sites.div.endem$CWM_log.range[
+  match(sites.div$SSBS,sites.div.endem$SSBS)]
+
+tempData <- sites.div[!is.na(sites.div$CWM_log.range),]
+table(tempData$LandUse3,tempData$Biome2)
+
+site_sample_years <- as.numeric(sapply(
+  X = sites.div$Sample_start_earliest,
+  FUN = function(d){return(strsplit(
+    x = paste(d),split = "-")[[1]][1])}))
+
+cat('Summary of sample years:\n')
+cat(paste0('Oldest = ',min(site_sample_years),'\n'))
+cat(paste0('Most recent = ',max(site_sample_years),'\n'))
+cat(paste0("% since 2000 = ",(length(which(site_sample_years>=2000))/length(site_sample_years))*100,'\n'))
+
 save(sites.div,file=paste(outDir,"modelling_data.Rd",sep=""))
 
 world <- readOGR(dsn = "0_data",layer = "TM_WORLD_BORDERS-0.3",verbose = FALSE)
 
-tiff(filename = paste0(outDir,"SitesMap.tif"),width = 15.92,height = 12,units = "cm",compression = "lzw",res = 1200)
+pdf(file = paste0(outDir,"ExtendedData1.pdf"),width = 18/2.54,height = 13.5/2.54)
 
 par(mar=c(2.5,0,0,0))
+
+par(cex=1.0)
+par(cex.axis=1.0)
+par(cex.lab=1.0)
+par(cex.main=1.0)
+par(ps=10)
 
 plot(world,col="#aaaaaa",border=NA)
 
@@ -182,11 +219,22 @@ sites.div$PointCol <- dplyr::recode(sites.div$Biome2,
 
 points(sites.div$Longitude,sites.div$Latitude,pch=16,cex=0.5,col=paste(sites.div$PointCol))
 
+par(ps=10)
+par(cex=1)
+par(cex.lab=1)
+par(cex.axis=1)
+
 legend(x = -180,y = -95,legend = c(
   'Tropical Forest','Tropical Grasslands','Drylands','Mediterranean',
   'Temperate Forest','Temperate Grasslands'),
   col = c('#0072B2','#E69F00','#D55E00',
           '#CC79A7','#56B4E9','#F0E442'),
-  ncol=3,xpd=TRUE,cex=0.9,pch=16)
+  ncol=3,xpd=TRUE,cex=1,pch=16,bty="n")
 
 invisible(dev.off())
+
+t.end <- Sys.time()
+
+print(round(t.end - t.start,0))
+
+sink()

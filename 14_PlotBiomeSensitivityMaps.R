@@ -1,14 +1,23 @@
-suppressMessages(suppressWarnings(library(rgdal)))
-suppressMessages(suppressWarnings(library(maptools)))
-suppressMessages(suppressWarnings(library(dplyr)))
-suppressMessages(suppressWarnings(library(RColorBrewer)))
+outDir <- "14_PlotBiomeSensitivityMaps/"
 
 dataDir <- "0_data"
 sitesDir <- "2_PrepareSiteData/"
 landuseSensitivityDir <- "6_PlotLandUseModels/"
 climateSensitivityDir <- "10_EstimateClimateSensitivityByBiome/"
 
-outDir <- "14_PlotBiomeSensitivityMaps/"
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
+print(sessionInfo())
+
+suppressMessages(suppressWarnings(library(rgdal)))
+suppressMessages(suppressWarnings(library(maptools)))
+suppressMessages(suppressWarnings(library(dplyr)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+
 
 ecoreg <- readOGR(dsn = dataDir,layer = "tnc_terr_ecoregions",verbose = FALSE)
 
@@ -91,3 +100,9 @@ plot(biomes,col=luSens.cols,border=NA)
 plot(biomes,col=climateSens.cols,border=NA)
 
 invisible(dev.off())
+
+t.end <- Sys.time()
+
+print(round(t.end - t.start,0))
+
+sink()

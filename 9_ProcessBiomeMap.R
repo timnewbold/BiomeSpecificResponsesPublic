@@ -1,28 +1,20 @@
+outDir <- "9_ProcessBiomeMap/"
+
+dataDir <- "0_data"
+dummyRasDir <- "7_CalculateClimateDeltas/"
+
+sink(file = paste0(outDir,"log.txt"))
+
+t.start <- Sys.time()
+
+print(t.start)
+
 suppressMessages(suppressWarnings(library(sp)))
 suppressMessages(suppressWarnings(library(rgdal)))
 suppressMessages(suppressWarnings(library(maptools)))
 suppressMessages(suppressWarnings(library(raster)))
 
-print(installed.packages()['base',]['Package'])
-print(installed.packages()['base',]['Version'])
-
-print(installed.packages()['sp',]['Package'])
-print(installed.packages()['sp',]['Version'])
-
-print(installed.packages()['rgdal',]['Package'])
-print(installed.packages()['rgdal',]['Version'])
-
-print(installed.packages()['maptools',]['Package'])
-print(installed.packages()['maptools',]['Version'])
-
-print(installed.packages()['raster',]['Package'])
-print(installed.packages()['raster',]['Version'])
-
-dataDir <- "0_data"
-
-dummyRasDir <- "7_CalculateClimateDeltas/"
-
-outDir <- "9_ProcessBiomeMap/"
+print(sessionInfo())
 
 behrCRS <- CRS('+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs')
 
@@ -43,3 +35,9 @@ biomeRas <- raster::rasterize(
 raster::writeRaster(
   x = biomeRas,filename = paste0(outDir,"BiomeRaster.tif"),
   format="GTiff")
+
+t.end <- Sys.time()
+
+print(round(t.end - t.start,0))
+
+sink()
