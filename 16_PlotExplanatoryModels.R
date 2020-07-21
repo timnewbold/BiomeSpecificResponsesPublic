@@ -15,7 +15,7 @@ print(sessionInfo())
 modelRichPlotting <- readRDS(paste0(modelsDir,"RichnessModelForPlotting.rds"))
 modelAbundPlotting <- readRDS(paste0(modelsDir,"AbundanceModelForPlotting.rds"))
 
-pdf(file = paste0(outDir,"Figure5.pdf"),width = 18/2.54,
+pdf(file = paste0(outDir,"Figure4.pdf"),width = 18/2.54,
     height = 18/2.54)
 
 par(mfrow=c(3,2))
